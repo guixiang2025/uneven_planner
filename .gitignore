@@ -11,4 +11,6 @@ map_mountain.dae
 
 ref/
 *.bag
-*.map
+*.map*.log
+*.save
+*.log

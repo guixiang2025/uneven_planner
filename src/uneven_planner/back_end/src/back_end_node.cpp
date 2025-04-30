@@ -6,6 +6,7 @@ using namespace uneven_planner;
 int main( int argc, char * argv[] )
 { 
     ros::init(argc, argv, "back_end_node");
+    ROS_INFO("<<<<< Workflow Test: back_end_node started! >>>>>");
     ros::NodeHandle nh("~");
 
     ALMTrajOpt traj_opt;

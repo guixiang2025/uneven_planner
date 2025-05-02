@@ -663,6 +663,9 @@ namespace uneven_planner
     void ALMTrajOpt::calConstrainCostGrad(double& cost, Eigen::MatrixXd& gdCxy, Eigen::VectorXd &gdTxy, \
                                           Eigen::MatrixXd& gdCyaw, Eigen::VectorXd &gdTyaw)
     {
+        // Add temporary slip cost weight parameter for debugging
+        const double temp_param_Ps = 1.0;
+        
         cost = 0.0;
         gdCxy.resize(6*piece_xy, 2);
         gdCxy.setZero();
@@ -783,24 +786,6 @@ namespace uneven_planner
                 cos_xi = terrain_values[4];
                 inv_cos_xi = terrain_values[5];
                 sigma = terrain_values[6];
-
-                // debug
-                // inv_cos_vphix = 1.0;
-                // sin_phix = 0.0;
-                // inv_cos_vphiy = 1.0;
-                // sin_phiy = 0.0;
-                // cos_xi = 1.0;
-                // inv_cos_xi = 1.0;
-                // sigma = 0.0;
-                // // terrain_grads[0].setZero();
-                // // terrain_grads[1].setZero();
-                // // terrain_grads[2].setZero();
-                // // terrain_grads[3].setZero();
-                // // terrain_grads[4].setZero();
-                // // terrain_grads[5].setZero();
-                // // terrain_grads[6].setZero();
-                // for (size_t i=0; i<terrain_grads.size(); i++)
-                //     terrain_grads[i].setZero();
 
                 grad_inv_cos_vphix = terrain_grads[0];
                 grad_sin_phix = terrain_grads[1];
@@ -944,6 +929,23 @@ namespace uneven_planner
                 }
                 non_equal_idx++;
                 constrain_idx++;
+
+                // Debug slip cost calculations
+                double current_time = base_time + s1;
+                double current_velocity = v_norm;
+                double phi_x_rad = atan(sin_phix / inv_cos_vphix);
+                double phi_y_rad = atan(sin_phiy / inv_cos_vphiy);
+                double current_slope = sqrt(phi_x_rad * phi_x_rad + phi_y_rad * phi_y_rad);
+                double cost_before_slip = cost;
+                
+                ROS_DEBUG_STREAM("[ALMTrajOpt] Slip cost debug at segment " << i << ", sample " << j 
+                                << " | time: " << current_time
+                                << " | velocity: " << current_velocity
+                                << " | phi_x_rad: " << phi_x_rad
+                                << " | phi_y_rad: " << phi_y_rad  
+                                << " | current_slope: " << current_slope
+                                << " | cost_before_slip: " << cost_before_slip
+                                << " | temp_param_Ps: " << temp_param_Ps);
 
                 // process with vx, wz, ax
                 grad_v += grad_vx2 * inv_cos_vphix * inv_cos_vphix * 2.0 * vel;

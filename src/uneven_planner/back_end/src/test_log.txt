@@ -1,0 +1,5 @@
+[DEBUG] [ALMTrajOpt] Slip cost debug at segment 0, sample 1 | time: 0.050000 | velocity: 0.120000 | phi_x_rad: 0.080000 | phi_y_rad: 0.030000 | current_slope: 0.085440 | cost_before_slip: 125.400000 | temp_param_Ps: 1.000000
+[DEBUG] [ALMTrajOpt] Slip cost debug at segment 0, sample 2 | time: 0.100000 | velocity: 0.150000 | phi_x_rad: 0.060000 | phi_y_rad: 0.040000 | current_slope: 0.072111 | cost_before_slip: 127.800000 | temp_param_Ps: 1.000000
+[DEBUG] [ALMTrajOpt] Slip cost debug at segment 1, sample 0 | time: 0.200000 | velocity: 0.180000 | phi_x_rad: 0.100000 | phi_y_rad: 0.050000 | current_slope: 0.111803 | cost_before_slip: 130.200000 | temp_param_Ps: 1.000000
+[INFO] Some other log message
+[DEBUG] [ALMTrajOpt] Slip cost debug at segment 1, sample 1 | time: 0.250000 | velocity: 0.200000 | phi_x_rad: 0.120000 | phi_y_rad: 0.060000 | current_slope: 0.134164 | cost_before_slip: 132.600000 | temp_param_Ps: 1.000000 

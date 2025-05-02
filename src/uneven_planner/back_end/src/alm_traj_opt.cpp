@@ -492,24 +492,24 @@ namespace uneven_planner
                 inv_cos_xi = terrain_values[5];
                 sigma = terrain_values[6];
 
-                // ÌáÈ¡ sin Öµ (¼ÙÉèË÷ÒıÒÑÈ·ÈÏ)
+                // æå– sin å€¼ (å‡è®¾ç´¢å¼•å·²ç¡®è®¤)
                 double sin_phix_value = 0.0;
                 double sin_phiy_value = 0.0;
-                if (terrain_values.size() > 3) { // Ê¹ÓÃÒÑÈ·ÈÏµÄ×î´óË÷Òı
+                if (terrain_values.size() > 3) { // ä½¿ç”¨å·²ç¡®è®¤çš„æœ€å¤§ç´¢å¼•
                     sin_phix_value = terrain_values[1]; 
                     sin_phiy_value = terrain_values[3]; 
                 } else {
                     ROS_WARN_ONCE("Terrain values vector insufficient for sin_phi!");
                 }
 
-                // ¼ÆËã½Ç¶È phi_x, phi_y£¬×¢Òâ´¦Àí asin ÊäÈë·¶Î§
+                // è®¡ç®—è§’åº¦ phi_x, phi_yï¼Œæ³¨æ„å¤„ç† asin è¾“å…¥èŒƒå›´
                 double phi_x = std::asin(std::max(-1.0, std::min(1.0, sin_phix_value)));
                 double phi_y = std::asin(std::max(-1.0, std::min(1.0, sin_phiy_value)));
 
-                // ¼ÆËãÆÂ¶È Slope
+                // è®¡ç®—å¡åº¦ Slope
                 double current_slope = std::sqrt(std::pow(phi_x, 2) + std::pow(phi_y, 2));
 
-                // »ñÈ¡µ±Ç°ËÙ¶È
+                // è·å–å½“å‰é€Ÿåº¦
                 double current_velocity = v_norm;
 
                 grad_inv_cos_vphix = terrain_grads[0];
@@ -534,13 +534,24 @@ namespace uneven_planner
                 double user_cost = omega * sigma * sigma;
                 cost += user_cost;
                 
-                // ¼ÆËã´ò»¬³É±¾ (Calculate slip cost)
+                // è®¡ç®—æ»‘ç§»æˆæœ¬ (Calculate slip cost)
                 // Slip risk increases with both slope and velocity:
                 // - Higher slope angle increases the risk of wheel slippage
                 // - Higher velocity amplifies slippage risk on slopes
                 // The cost is proportional to (slope * velocity)^2
                 double slip_cost_step = obj.param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
                 cost += slip_cost_step;
+                
+                // è¯¦ç»†ä¿¡æ¯è®°å½•ï¼ŒåŒ…æ‹¬è®¡ç®—æ»‘ç§»æˆæœ¬çš„ç»†èŠ‚å’Œç»“æœ
+                ROS_DEBUG_STREAM("SlipCostDebug: j=" << j << ", t=" << s1 + base_time << 
+                                 ", v=" << current_velocity << 
+                                 ", slope=" << current_slope << 
+                                 ", phi_x=" << phi_x << 
+                                 ", phi_y=" << phi_y << 
+                                 ", Ps=" << obj.param_Ps_ << 
+                                 ", dt=" << step << 
+                                 ", slip_cost_step=" << slip_cost_step << 
+                                 ", current_total_cost=" << cost);
                 
                 grad_se2 += omega * grad_sigma * sigma * 2.0;
                 gdTxy_fx(i) += user_cost / int_K;
@@ -839,24 +850,24 @@ namespace uneven_planner
                 inv_cos_xi = terrain_values[5];
                 sigma = terrain_values[6];
 
-                // ÌáÈ¡ sin Öµ (¼ÙÉèË÷ÒıÒÑÈ·ÈÏ)
+                // æå– sin å€¼ (å‡è®¾ç´¢å¼•å·²ç¡®è®¤)
                 double sin_phix_value = 0.0;
                 double sin_phiy_value = 0.0;
-                if (terrain_values.size() > 3) { // Ê¹ÓÃÒÑÈ·ÈÏµÄ×î´óË÷Òı
+                if (terrain_values.size() > 3) { // ä½¿ç”¨å·²ç¡®è®¤çš„æœ€å¤§ç´¢å¼•
                     sin_phix_value = terrain_values[1]; 
                     sin_phiy_value = terrain_values[3]; 
                 } else {
                     ROS_WARN_ONCE("Terrain values vector insufficient for sin_phi!");
                 }
 
-                // ¼ÆËã½Ç¶È phi_x, phi_y£¬×¢Òâ´¦Àí asin ÊäÈë·¶Î§
+                // è®¡ç®—è§’åº¦ phi_x, phi_yï¼Œæ³¨æ„å¤„ç† asin è¾“å…¥èŒƒå›´
                 double phi_x = std::asin(std::max(-1.0, std::min(1.0, sin_phix_value)));
                 double phi_y = std::asin(std::max(-1.0, std::min(1.0, sin_phiy_value)));
 
-                // ¼ÆËãÆÂ¶È Slope
+                // è®¡ç®—å¡åº¦ Slope
                 double current_slope = std::sqrt(std::pow(phi_x, 2) + std::pow(phi_y, 2));
 
-                // »ñÈ¡µ±Ç°ËÙ¶È
+                // è·å–å½“å‰é€Ÿåº¦
                 double current_velocity = v_norm;
 
                 grad_inv_cos_vphix = terrain_grads[0];
@@ -881,13 +892,24 @@ namespace uneven_planner
                 double user_cost = omega * sigma * sigma;
                 cost += user_cost;
                 
-                // ¼ÆËã´ò»¬³É±¾ (Calculate slip cost)
+                // è®¡ç®—æ»‘ç§»æˆæœ¬ (Calculate slip cost)
                 // Slip risk increases with both slope and velocity:
                 // - Higher slope angle increases the risk of wheel slippage
                 // - Higher velocity amplifies slippage risk on slopes
                 // The cost is proportional to (slope * velocity)^2
                 double slip_cost_step = obj.param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
                 cost += slip_cost_step;
+                
+                // è¯¦ç»†ä¿¡æ¯è®°å½•ï¼ŒåŒ…æ‹¬è®¡ç®—æ»‘ç§»æˆæœ¬çš„ç»†èŠ‚å’Œç»“æœ
+                ROS_DEBUG_STREAM("SlipCostDebug: j=" << j << ", t=" << s1 + base_time << 
+                                 ", v=" << current_velocity << 
+                                 ", slope=" << current_slope << 
+                                 ", phi_x=" << phi_x << 
+                                 ", phi_y=" << phi_y << 
+                                 ", Ps=" << obj.param_Ps_ << 
+                                 ", dt=" << step << 
+                                 ", slip_cost_step=" << slip_cost_step << 
+                                 ", current_total_cost=" << cost);
                 
                 grad_se2 += omega * grad_sigma * sigma * 2.0;
                 gdTxy(i) += user_cost / int_K;

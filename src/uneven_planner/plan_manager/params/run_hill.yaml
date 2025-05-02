@@ -38,6 +38,7 @@ manager_node:
     max_kap: 2.1
     min_cxi: 0.8
     max_sig: 0.05
+    slip_cost_weight: 1.0
     use_scaling: true
     rho: 1.0
     beta: 1000.0

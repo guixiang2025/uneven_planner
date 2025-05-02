@@ -12,6 +12,8 @@ namespace uneven_planner
         nh.getParam("alm_traj_opt/max_kap", max_kap);
         nh.getParam("alm_traj_opt/min_cxi", min_cxi);
         nh.getParam("alm_traj_opt/max_sig", max_sig);
+        nh.getParam("alm_traj_opt/slip_cost_weight", slip_cost_weight);
+        nh.param<double>("alm_traj_opt/param_Ps", param_Ps_, 1.0);
         nh.getParam("alm_traj_opt/use_scaling", use_scaling);
         nh.getParam("alm_traj_opt/rho", rho);
         nh.getParam("alm_traj_opt/beta", beta);
@@ -532,8 +534,12 @@ namespace uneven_planner
                 double user_cost = omega * sigma * sigma;
                 cost += user_cost;
                 
-                // 计算打滑成本
-                double slip_cost_step = param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
+                // 计算打滑成本 (Calculate slip cost)
+                // Slip risk increases with both slope and velocity:
+                // - Higher slope angle increases the risk of wheel slippage
+                // - Higher velocity amplifies slippage risk on slopes
+                // The cost is proportional to (slope * velocity)^2
+                double slip_cost_step = obj.param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
                 cost += slip_cost_step;
                 
                 grad_se2 += omega * grad_sigma * sigma * 2.0;
@@ -712,8 +718,6 @@ namespace uneven_planner
                                           Eigen::MatrixXd& gdCyaw, Eigen::VectorXd &gdTyaw)
     {
         cost = 0.0;
-        // 添加滑动成本权重参数，后续会从配置文件加载
-        const double param_Ps_ = 1.0;
         
         gdCxy.resize(6*piece_xy, 2);
         gdCxy.setZero();
@@ -877,8 +881,12 @@ namespace uneven_planner
                 double user_cost = omega * sigma * sigma;
                 cost += user_cost;
                 
-                // 计算打滑成本
-                double slip_cost_step = param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
+                // 计算打滑成本 (Calculate slip cost)
+                // Slip risk increases with both slope and velocity:
+                // - Higher slope angle increases the risk of wheel slippage
+                // - Higher velocity amplifies slippage risk on slopes
+                // The cost is proportional to (slope * velocity)^2
+                double slip_cost_step = obj.param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
                 cost += slip_cost_step;
                 
                 grad_se2 += omega * grad_sigma * sigma * 2.0;

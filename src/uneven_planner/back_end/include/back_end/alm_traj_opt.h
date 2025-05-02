@@ -28,6 +28,7 @@ namespace uneven_planner
             /// problem
             double rho_T;
             double rho_ter;
+            double slip_cost_weight;  // 打滑成本权重
             double max_vel;
             double max_acc_lon;
             double max_acc_lat;
@@ -84,6 +85,9 @@ namespace uneven_planner
             ros::Subscriber odom_sub;
             ros::Subscriber wps_sub;
             Eigen::Vector3d odom_pos;
+
+        private:
+            double param_Ps_;  // Weight parameter for trajectory optimization
 
         public:
             void init(ros::NodeHandle& nh);

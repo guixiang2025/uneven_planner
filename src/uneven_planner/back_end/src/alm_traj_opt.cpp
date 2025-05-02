@@ -357,17 +357,17 @@ namespace uneven_planner
         Eigen::VectorXd Txy, Tyaw;
         Txy.resize(piece_xy);
         Tyaw.resize(piece_yaw);
-        calTfromTau(tau, Txy);
-        calTfromTau(tau, Tyaw);
-        minco_se2.generate(init_xy, end_xy, Pxy, Txy, \
-                           init_yaw, end_yaw, Pyaw, Tyaw);
+        obj.calTfromTau(tau, Txy);
+        obj.calTfromTau(tau, Tyaw);
+        obj.minco_se2.generate(obj.init_xy, obj.end_xy, Pxy, Txy, \
+                           obj.init_yaw, obj.end_yaw, Pyaw, Tyaw);
         
         // get jerk grad (C,T)
         Eigen::MatrixXd gdCxy_fx;
         Eigen::VectorXd gdTxy_fx;
         Eigen::MatrixXd gdCyaw_fx;
         Eigen::VectorXd gdTyaw_fx;
-        minco_se2.calJerkGradCT(gdCxy_fx, gdTxy_fx, gdCyaw_fx, gdTyaw_fx);
+        obj.minco_se2.calJerkGradCT(gdCxy_fx, gdTxy_fx, gdCyaw_fx, gdTyaw_fx);
         
         std::vector<Eigen::MatrixXd> gdCxy;
         std::vector<Eigen::VectorXd> gdTxy;
@@ -415,8 +415,8 @@ namespace uneven_planner
         double base_time = 0.0;
         for (int i=0; i<piece_xy; i++)
         {
-            const Eigen::Matrix<double, 6, 2> &c_xy = minco_se2.pos_minco.getCoeffs().block<6, 2>(i * 6, 0);
-            step = minco_se2.pos_minco.T1(i) / int_K;
+            const Eigen::Matrix<double, 6, 2> &c_xy = obj.minco_se2.pos_minco.getCoeffs().block<6, 2>(i * 6, 0);
+            step = obj.minco_se2.pos_minco.T1(i) / int_K;
             s1 = 0.0;
 
             for (int j=0; j<=int_K; j++)
@@ -452,11 +452,11 @@ namespace uneven_planner
 
                 // analyse yaw
                 double now_time = s1 + base_time;
-                yaw_idx = int((now_time) / minco_se2.yaw_minco.T1(i));
+                yaw_idx = int((now_time) / obj.minco_se2.yaw_minco.T1(i));
                 if (yaw_idx >= piece_yaw)
                     yaw_idx = piece_yaw - 1;
-                const Eigen::Matrix<double, 6, 1> &c_yaw = minco_se2.yaw_minco.getCoeffs().block<6, 1>(yaw_idx * 6, 0);
-                s1_yaw = now_time - yaw_idx * minco_se2.yaw_minco.T1(i);
+                const Eigen::Matrix<double, 6, 1> &c_yaw = obj.minco_se2.yaw_minco.getCoeffs().block<6, 1>(yaw_idx * 6, 0);
+                s1_yaw = now_time - yaw_idx * obj.minco_se2.yaw_minco.T1(i);
                 s2_yaw = s1_yaw * s1_yaw;
                 s3_yaw = s2_yaw * s1_yaw;
                 s4_yaw = s2_yaw * s2_yaw;
@@ -490,6 +490,26 @@ namespace uneven_planner
                 inv_cos_xi = terrain_values[5];
                 sigma = terrain_values[6];
 
+                // 提取 sin 值 (假设索引已确认)
+                double sin_phix_value = 0.0;
+                double sin_phiy_value = 0.0;
+                if (terrain_values.size() > 3) { // 使用已确认的最大索引
+                    sin_phix_value = terrain_values[1]; 
+                    sin_phiy_value = terrain_values[3]; 
+                } else {
+                    ROS_WARN_ONCE("Terrain values vector insufficient for sin_phi!");
+                }
+
+                // 计算角度 phi_x, phi_y，注意处理 asin 输入范围
+                double phi_x = std::asin(std::max(-1.0, std::min(1.0, sin_phix_value)));
+                double phi_y = std::asin(std::max(-1.0, std::min(1.0, sin_phiy_value)));
+
+                // 计算坡度 Slope
+                double current_slope = std::sqrt(std::pow(phi_x, 2) + std::pow(phi_y, 2));
+
+                // 获取当前速度
+                double current_velocity = v_norm;
+
                 grad_inv_cos_vphix = terrain_grads[0];
                 grad_sin_phix = terrain_grads[1];
                 grad_inv_cos_vphiy = terrain_grads[2];
@@ -506,11 +526,17 @@ namespace uneven_planner
 
                 // user-defined cost: surface variation
                 if (j==0 || j==int_K)
-                    omega = 0.5 * rho_ter * step;
+                    omega = 0.5 * obj.rho_ter * step * obj.scale_fx;
                 else
-                    omega = rho_ter * step;
+                    omega = obj.rho_ter * step * obj.scale_fx;
                 double user_cost = omega * sigma * sigma;
-                grad_se2 = omega * grad_sigma * sigma * 2.0;
+                cost += user_cost;
+                
+                // 计算打滑成本
+                double slip_cost_step = param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
+                cost += slip_cost_step;
+                
+                grad_se2 += omega * grad_sigma * sigma * 2.0;
                 gdTxy_fx(i) += user_cost / int_K;
                 gdCxy_fx.block<6, 2>(i * 6, 0) += beta0_xy * grad_se2.head(2).transpose();
                 gdTxy_fx(i) += grad_se2.head(2).dot(vel) * alpha;
@@ -519,109 +545,131 @@ namespace uneven_planner
                 gdTxy_fx(i) += (grad_se2(2) * dyaw) * (alpha+i);
 
                 // non-holonomic
-                grad_v = Eigen::Vector2d(syaw, -cyaw);
-                grad_yaw = vel.dot(xb);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += beta1_xy * grad_v.transpose();
-                gdTxy[constrain_idx](i) += grad_v.dot(acc) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double nonh_lambda = obj.lambda[equal_idx];
+                Eigen::Vector2d non_holonomic_yaw(syaw, -cyaw);
+                hx[equal_idx] = vel.dot(non_holonomic_yaw) * obj.scale_cx(constrain_idx);
+                double nonh_grad = obj.getAugmentedGrad(hx[equal_idx], nonh_lambda) * obj.scale_cx(constrain_idx);
+                grad_v += nonh_grad * non_holonomic_yaw;
+                grad_yaw += nonh_grad * vel.dot(xb);
+                equal_idx++;
                 constrain_idx++;
                 
                 // longitude velocity
-                grad_vx2 = 1.0;
-                grad_v = grad_vx2 * inv_cos_vphix * inv_cos_vphix * 2.0 * vel;
-                grad_se2 = grad_vx2 * v_norm * v_norm * 2.0 * inv_cos_vphix * grad_inv_cos_vphix;
-                grad_p = grad_se2.head(2);
-                grad_yaw = grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose() + \
-                                                               beta1_xy * grad_v.transpose());
-                gdTxy[constrain_idx](i) += (grad_p.dot(vel) + \
-                                            grad_v.dot(acc)) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double v_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (vx*vx - obj.max_vel*obj.max_vel) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + v_mu > 0)
+                {
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], v_mu) * obj.scale_cx(constrain_idx);
+                    grad_vx2 += aug_grad;
+                }
+                non_equal_idx++;
                 constrain_idx++;
 
                 // longitude acceleration
-                grad_ax = 2.0 * ax;
-                grad_a = grad_ax * inv_cos_vphix * xb;
-                grad_yaw = grad_ax * inv_cos_vphix * lat_acc;
-                grad_se2 = grad_ax * (gravity * grad_sin_phix + grad_inv_cos_vphix * lon_acc);
-                grad_p = grad_se2.head(2);
-                grad_yaw += grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose() + \
-                                                               beta2_xy * grad_a.transpose());
-                gdTxy[constrain_idx](i) += (grad_p.dot(vel) + \
-                                            grad_a.dot(jer) ) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double lona_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (ax*ax - obj.max_acc_lon*obj.max_acc_lon) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + lona_mu > 0)
+                {
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], lona_mu) * obj.scale_cx(constrain_idx);
+                    grad_ax += aug_grad * 2.0 * ax;
+                }
+                non_equal_idx++;
                 constrain_idx++;
 
                 // latitude acceleration
-                grad_ay = 2.0 * ay;
-                grad_a = grad_ay * inv_cos_vphiy * yb;
-                grad_yaw = -grad_ay * inv_cos_vphiy * lon_acc;
-                grad_se2 = grad_ay * (gravity * grad_sin_phiy + grad_inv_cos_vphiy * lat_acc);
-                grad_p = grad_se2.head(2);
-                grad_yaw += grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose() + \
-                                                               beta2_xy * grad_a.transpose());
-                gdTxy[constrain_idx](i) += (grad_p.dot(vel) + \
-                                            grad_a.dot(jer) ) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double lata_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (ay*ay - obj.max_acc_lat*obj.max_acc_lat) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + lata_mu > 0)
+                {
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], lata_mu) * obj.scale_cx(constrain_idx);
+                    grad_ay += aug_grad * 2.0 * ay;
+                }
+                non_equal_idx++;
                 constrain_idx++;
 
                 // curvature
-                double denominator = 1.0 / (vx*vx + delta_sigl);
-                grad_wz = denominator * 2.0 * wz;
-                grad_vx2 = -curv_snorm * denominator;
-                grad_dyaw = grad_wz * inv_cos_xi;
-                grad_se2 = grad_wz * dyaw * grad_inv_cos_xi;
-                grad_v = grad_vx2 * inv_cos_vphix * inv_cos_vphix * 2.0 * vel;
-                grad_se2 += grad_vx2 * v_norm * v_norm * 2.0 * inv_cos_vphix * grad_inv_cos_vphix;
-                grad_p = grad_se2.head(2);
-                grad_yaw = grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose() + \
-                                                               beta1_xy * grad_v.transpose());
-                gdTxy[constrain_idx](i) += (grad_p.dot(vel) + \
-                                            grad_v.dot(acc)) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += (beta0_yaw * grad_yaw + \
-                                                                      beta1_yaw * grad_dyaw);
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw +
-                                                    grad_dyaw * d2yaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw +
-                                            grad_dyaw * d2yaw) * (alpha+i);
+                double curv_mu = obj.mu[non_equal_idx];
+                if (obj.use_scaling)
+                    gx[non_equal_idx] = (curv_snorm - obj.max_kap*obj.max_kap) * obj.scale_cx(constrain_idx);
+                else
+                    gx[non_equal_idx] = (curv_snorm - obj.max_kap*obj.max_kap) * obj.cur_scale;
+                if (obj.rho * gx[non_equal_idx] + curv_mu > 0)
+                {
+                    double denominator = 1.0 / (vx*vx + delta_sigl);
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], curv_mu) * obj.scale_cx(constrain_idx);
+                    grad_wz += aug_grad * denominator * 2.0 * wz;
+                    grad_vx2 -= aug_grad * curv_snorm * denominator;
+                }
+                non_equal_idx++;
                 constrain_idx++;
 
                 // attitude
-                grad_se2 = -grad_cos_xi;
-                grad_p = grad_se2.head(2);
-                grad_yaw = grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose());
-                gdTxy[constrain_idx](i) += grad_p.dot(vel) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double att_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (obj.min_cxi - cos_xi) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + att_mu > 0)
+                {
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], att_mu) * obj.scale_cx(constrain_idx);
+                    grad_se2 -= aug_grad * grad_cos_xi;
+                }
+                non_equal_idx++;
                 constrain_idx++;
 
                 // surface variation
-                grad_se2 = grad_sigma;
-                grad_p = grad_se2.head(2);
-                grad_yaw = grad_se2(2);
-                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose());
-                gdTxy[constrain_idx](i) += grad_p.dot(vel) * alpha;
-                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += beta0_yaw * grad_yaw;
-                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw) * yaw_idx;
-                gdTxy[constrain_idx](i) += (grad_yaw * dyaw) * (alpha+i);
+                double sig_mu = obj.mu[non_equal_idx];
+                if (obj.use_scaling)
+                    gx[non_equal_idx] = (sigma - obj.max_sig) * obj.scale_cx(constrain_idx);
+                else
+                    gx[non_equal_idx] = (sigma - obj.max_sig) * obj.sig_scale;
+                if (obj.rho * gx[non_equal_idx] + sig_mu > 0)
+                {
+                    double aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], sig_mu) * obj.scale_cx(constrain_idx);
+                    grad_se2 += aug_grad * grad_sigma;
+                }
+                non_equal_idx++;
                 constrain_idx++;
+
+                // process with vx, wz, ax
+                grad_v += grad_vx2 * inv_cos_vphix * inv_cos_vphix * 2.0 * vel;
+                grad_se2 += grad_vx2 * v_norm * v_norm * 2.0 * inv_cos_vphix * grad_inv_cos_vphix;
+                
+                grad_dyaw += grad_wz * inv_cos_xi;
+                grad_se2 += grad_wz * dyaw * grad_inv_cos_xi;
+
+                grad_a += grad_ax * inv_cos_vphix * xb;
+                grad_yaw += grad_ax * inv_cos_vphix * lat_acc;
+                grad_se2 += grad_ax * (gravity * grad_sin_phix + grad_inv_cos_vphix * lon_acc);
+
+                grad_a += grad_ay * inv_cos_vphiy * yb;
+                grad_yaw -= grad_ay * inv_cos_vphiy * lon_acc;
+                grad_se2 += grad_ay * (gravity * grad_sin_phiy + grad_inv_cos_vphiy * lat_acc);
+
+                grad_p += grad_se2.head(2);
+                grad_yaw += grad_se2(2);
+
+                // add all grad into C,T
+                // note that xy = Cxy*尾(j/K*T_xy), yaw = Cyaw*尾(i*T_xy+j/K*T_xy-yaw_idx*T_yaw)
+                // 鈭俻/鈭侰xy, 鈭倂/鈭侰xy, 鈭俛/鈭侰xy
+                gdCxy[constrain_idx].block<6, 2>(i * 6, 0) += (beta0_xy * grad_p.transpose() + \
+                                                beta1_xy * grad_v.transpose() + \
+                                                beta2_xy * grad_a.transpose());
+                // 鈭俻/鈭俆xy, 鈭倂/鈭俆xy, 鈭俛/鈭俆xy
+                gdTxy[constrain_idx](i) += (grad_p.dot(vel) + \
+                                             grad_v.dot(acc) + \
+                                             grad_a.dot(jer) ) * alpha;
+                // 鈭倅aw/鈭侰yaw, 鈭俤yaw/鈭侰yaw, 鈭俤2yaw/鈭侰yaw
+                gdCyaw[constrain_idx].block<6, 1>(yaw_idx * 6, 0) += (beta0_yaw * grad_yaw + \
+                                                       beta1_yaw * grad_dyaw + \
+                                                       beta2_yaw * grad_d2yaw);
+                // 鈭倅aw/鈭俆yaw, 鈭俤yaw/鈭俆yaw, 鈭俤2yaw/鈭俆yaw
+                gdTyaw[constrain_idx](yaw_idx) += -(grad_yaw * dyaw +
+                                                     grad_dyaw * d2yaw) * yaw_idx;
+                // 鈭倅aw/鈭俆xy, 鈭俤yaw/鈭俆xy, 鈭俤2yaw/鈭俆xy
+                gdTxy[constrain_idx](i) += (grad_yaw * dyaw +
+                                             grad_dyaw * d2yaw) * (alpha+i);
                 
                 s1 += step;
             }
-            base_time += minco_se2.pos_minco.T1(i);
+            base_time += obj.minco_se2.pos_minco.T1(i);
         }
         
         Eigen::MatrixXd gdPxy_fx;
@@ -629,33 +677,33 @@ namespace uneven_planner
         std::vector<Eigen::MatrixXd> gdPxy;
         std::vector<Eigen::MatrixXd> gdPyaw;
         std::vector<double>          gdTau;
-        minco_se2.calGradCTtoQT(gdCxy_fx, gdTxy_fx, gdPxy_fx, gdCyaw_fx, gdTyaw_fx, gdPyaw_fx);
-        double grad_Tsum_fx = rho_T + \
-                              gdTxy_fx.sum() / piece_xy + \
-                              gdTyaw_fx.sum() / piece_yaw;
-        double gdTau_fx = grad_Tsum_fx * getTtoTauGrad(tau);
+        obj.minco_se2.calGradCTtoQT(gdCxy_fx, gdTxy_fx, gdPxy_fx, gdCyaw_fx, gdTyaw_fx, gdPyaw_fx);
+        double grad_Tsum_fx = obj.rho_T + \
+                              gdTxy_fx.sum() / obj.piece_xy + \
+                              gdTyaw_fx.sum() / obj.piece_yaw;
+        double gdTau_fx = grad_Tsum_fx * obj.getTtoTauGrad(tau);
         for (int i=0; i<gdCxy.size(); i++)
         {
             Eigen::MatrixXd gdPxy_temp;
             Eigen::MatrixXd gdPyaw_temp;
-            minco_se2.calGradCTtoQT(gdCxy[i], gdTxy[i], gdPxy_temp, gdCyaw[i], gdTyaw[i], gdPyaw_temp);
-            double grad_Tsum = gdTxy[i].sum() / piece_xy + \
-                               gdTyaw[i].sum() / piece_yaw;
-            gdTau.push_back(grad_Tsum * getTtoTauGrad(tau));
+            obj.minco_se2.calGradCTtoQT(gdCxy[i], gdTxy[i], gdPxy_temp, gdCyaw[i], gdTyaw[i], gdPyaw_temp);
+            double grad_Tsum = gdTxy[i].sum() / obj.piece_xy + \
+                               gdTyaw[i].sum() / obj.piece_yaw;
+            gdTau.push_back(grad_Tsum * obj.getTtoTauGrad(tau));
             gdPxy.push_back(gdPxy_temp);
             gdPyaw.push_back(gdPyaw_temp);
         }
 
-        gdPxy_fx.resize((piece_xy-1)*2, 1);
-        gdPyaw_fx.resize(piece_yaw-1, 1);
-        scale_fx = 1.0 / max(1.0, max(max(gdPxy_fx.lpNorm<Eigen::Infinity>(), \
+        gdPxy_fx.resize((obj.piece_xy-1)*2, 1);
+        gdPyaw_fx.resize(obj.piece_yaw-1, 1);
+        obj.scale_fx = 1.0 / max(1.0, max(max(gdPxy_fx.lpNorm<Eigen::Infinity>(), \
                                       gdPyaw_fx.lpNorm<Eigen::Infinity>()), fabs(gdTau_fx)));
-        std::cout<<"scale_fx="<<scale_fx<<std::endl;
+        std::cout<<"scale_fx="<<obj.scale_fx<<std::endl;
         for (int i=0; i<equal_num+non_equal_num; i++)
         {
-            gdPxy[i].resize((piece_xy-1)*2, 1);
-            gdPyaw[i].resize(piece_yaw-1, 1);
-            scale_cx(i) = 1.0 / max(1.0, max(max(gdPxy[i].lpNorm<Eigen::Infinity>(), \
+            gdPxy[i].resize((obj.piece_xy-1)*2, 1);
+            gdPyaw[i].resize(obj.piece_yaw-1, 1);
+            obj.scale_cx(i) = 1.0 / max(1.0, max(max(gdPxy[i].lpNorm<Eigen::Infinity>(), \
                                       gdPyaw[i].lpNorm<Eigen::Infinity>()), fabs(gdTau[i])));
         }
     }
@@ -664,6 +712,9 @@ namespace uneven_planner
                                           Eigen::MatrixXd& gdCyaw, Eigen::VectorXd &gdTyaw)
     {
         cost = 0.0;
+        // 添加滑动成本权重参数，后续会从配置文件加载
+        const double param_Ps_ = 1.0;
+        
         gdCxy.resize(6*piece_xy, 2);
         gdCxy.setZero();
         gdTxy.resize(piece_xy);
@@ -707,10 +758,10 @@ namespace uneven_planner
         int constrain_idx = 0;
         int yaw_idx = 0;
         double base_time = 0.0;
-        for (int i=0; i<piece_xy; i++)
+        for (int i=0; i<obj.piece_xy; i++)
         {
-            const Eigen::Matrix<double, 6, 2> &c_xy = minco_se2.pos_minco.getCoeffs().block<6, 2>(i * 6, 0);
-            step = minco_se2.pos_minco.T1(i) / int_K;
+            const Eigen::Matrix<double, 6, 2> &c_xy = obj.minco_se2.pos_minco.getCoeffs().block<6, 2>(i * 6, 0);
+            step = obj.minco_se2.pos_minco.T1(i) / int_K;
             s1 = 0.0;
 
             for (int j=0; j<=int_K; j++)
@@ -746,11 +797,11 @@ namespace uneven_planner
 
                 // analyse yaw
                 double now_time = s1 + base_time;
-                yaw_idx = int((now_time) / minco_se2.yaw_minco.T1(i));
-                if (yaw_idx >= piece_yaw)
-                    yaw_idx = piece_yaw - 1;
-                const Eigen::Matrix<double, 6, 1> &c_yaw = minco_se2.yaw_minco.getCoeffs().block<6, 1>(yaw_idx * 6, 0);
-                s1_yaw = now_time - yaw_idx * minco_se2.yaw_minco.T1(i);
+                yaw_idx = int((now_time) / obj.minco_se2.yaw_minco.T1(i));
+                if (yaw_idx >= obj.piece_yaw)
+                    yaw_idx = obj.piece_yaw - 1;
+                const Eigen::Matrix<double, 6, 1> &c_yaw = obj.minco_se2.yaw_minco.getCoeffs().block<6, 1>(yaw_idx * 6, 0);
+                s1_yaw = now_time - yaw_idx * obj.minco_se2.yaw_minco.T1(i);
                 s2_yaw = s1_yaw * s1_yaw;
                 s3_yaw = s2_yaw * s1_yaw;
                 s4_yaw = s2_yaw * s2_yaw;
@@ -784,23 +835,25 @@ namespace uneven_planner
                 inv_cos_xi = terrain_values[5];
                 sigma = terrain_values[6];
 
-                // debug
-                // inv_cos_vphix = 1.0;
-                // sin_phix = 0.0;
-                // inv_cos_vphiy = 1.0;
-                // sin_phiy = 0.0;
-                // cos_xi = 1.0;
-                // inv_cos_xi = 1.0;
-                // sigma = 0.0;
-                // // terrain_grads[0].setZero();
-                // // terrain_grads[1].setZero();
-                // // terrain_grads[2].setZero();
-                // // terrain_grads[3].setZero();
-                // // terrain_grads[4].setZero();
-                // // terrain_grads[5].setZero();
-                // // terrain_grads[6].setZero();
-                // for (size_t i=0; i<terrain_grads.size(); i++)
-                //     terrain_grads[i].setZero();
+                // 提取 sin 值 (假设索引已确认)
+                double sin_phix_value = 0.0;
+                double sin_phiy_value = 0.0;
+                if (terrain_values.size() > 3) { // 使用已确认的最大索引
+                    sin_phix_value = terrain_values[1]; 
+                    sin_phiy_value = terrain_values[3]; 
+                } else {
+                    ROS_WARN_ONCE("Terrain values vector insufficient for sin_phi!");
+                }
+
+                // 计算角度 phi_x, phi_y，注意处理 asin 输入范围
+                double phi_x = std::asin(std::max(-1.0, std::min(1.0, sin_phix_value)));
+                double phi_y = std::asin(std::max(-1.0, std::min(1.0, sin_phiy_value)));
+
+                // 计算坡度 Slope
+                double current_slope = std::sqrt(std::pow(phi_x, 2) + std::pow(phi_y, 2));
+
+                // 获取当前速度
+                double current_velocity = v_norm;
 
                 grad_inv_cos_vphix = terrain_grads[0];
                 grad_sin_phix = terrain_grads[1];
@@ -818,129 +871,134 @@ namespace uneven_planner
 
                 // user-defined cost: surface variation
                 if (j==0 || j==int_K)
-                    omega = 0.5 * rho_ter * step * scale_fx;
+                    omega = 0.5 * obj.rho_ter * step * obj.scale_fx;
                 else
-                    omega = rho_ter * step * scale_fx;
+                    omega = obj.rho_ter * step * obj.scale_fx;
                 double user_cost = omega * sigma * sigma;
                 cost += user_cost;
+                
+                // 计算打滑成本
+                double slip_cost_step = param_Ps_ * std::pow(current_slope * current_velocity, 2) * step;
+                cost += slip_cost_step;
+                
                 grad_se2 += omega * grad_sigma * sigma * 2.0;
                 gdTxy(i) += user_cost / int_K;
 
                 // non-holonomic
-                double nonh_lambda = lambda[equal_idx];
+                double nonh_lambda = obj.lambda[equal_idx];
                 Eigen::Vector2d non_holonomic_yaw(syaw, -cyaw);
-                hx[equal_idx] = vel.dot(non_holonomic_yaw) * scale_cx(constrain_idx);
-                cost += getAugmentedCost(hx[equal_idx], nonh_lambda);
-                double nonh_grad = getAugmentedGrad(hx[equal_idx], nonh_lambda) * scale_cx(constrain_idx);
+                hx[equal_idx] = vel.dot(non_holonomic_yaw) * obj.scale_cx(constrain_idx);
+                cost += obj.getAugmentedCost(hx[equal_idx], nonh_lambda);
+                double nonh_grad = obj.getAugmentedGrad(hx[equal_idx], nonh_lambda) * obj.scale_cx(constrain_idx);
                 grad_v += nonh_grad * non_holonomic_yaw;
                 grad_yaw += nonh_grad * vel.dot(xb);
                 equal_idx++;
                 constrain_idx++;
                 
                 // longitude velocity
-                double v_mu = mu[non_equal_idx];
-                gx[non_equal_idx] = (vx*vx - max_vel*max_vel) * scale_cx(constrain_idx);
-                if (rho * gx[non_equal_idx] + v_mu > 0)
+                double v_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (vx*vx - obj.max_vel*obj.max_vel) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + v_mu > 0)
                 {
-                    cost += getAugmentedCost(gx[non_equal_idx], v_mu);
-                    aug_grad = getAugmentedGrad(gx[non_equal_idx], v_mu) * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], v_mu);
+                    aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], v_mu) * obj.scale_cx(constrain_idx);
                     grad_vx2 += aug_grad;
                 }
                 else
                 {
-                    cost += -0.5 * v_mu * v_mu / rho;
+                    cost += -0.5 * v_mu * v_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
 
                 // longitude acceleration
-                double lona_mu = mu[non_equal_idx];
-                gx[non_equal_idx] = (ax*ax - max_acc_lon*max_acc_lon) * scale_cx(constrain_idx);
-                if (rho * gx[non_equal_idx] + lona_mu > 0)
+                double lona_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (ax*ax - obj.max_acc_lon*obj.max_acc_lon) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + lona_mu > 0)
                 {
-                    cost += getAugmentedCost(gx[non_equal_idx], lona_mu);
-                    aug_grad = getAugmentedGrad(gx[non_equal_idx], lona_mu) * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], lona_mu);
+                    aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], lona_mu) * obj.scale_cx(constrain_idx);
                     grad_ax += aug_grad * 2.0 * ax;
                 }
                 else
                 {
-                    cost += -0.5 * lona_mu * lona_mu / rho;
+                    cost += -0.5 * lona_mu * lona_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
 
                 // latitude acceleration
-                double lata_mu = mu[non_equal_idx];
-                gx[non_equal_idx] = (ay*ay - max_acc_lat*max_acc_lat) * scale_cx(constrain_idx);
-                if (rho * gx[non_equal_idx] + lata_mu > 0)
+                double lata_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (ay*ay - obj.max_acc_lat*obj.max_acc_lat) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + lata_mu > 0)
                 {
-                    cost += getAugmentedCost(gx[non_equal_idx], lata_mu);
-                    aug_grad = getAugmentedGrad(gx[non_equal_idx], lata_mu) * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], lata_mu);
+                    aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], lata_mu) * obj.scale_cx(constrain_idx);
                     grad_ay += aug_grad * 2.0 * ay;
                 }
                 else
                 {
-                    cost += -0.5 * lata_mu * lata_mu / rho;
+                    cost += -0.5 * lata_mu * lata_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
 
                 // curvature
-                double curv_mu = mu[non_equal_idx];
-                if (use_scaling)
-                    gx[non_equal_idx] = (curv_snorm - max_kap*max_kap) * scale_cx(constrain_idx);
+                double curv_mu = obj.mu[non_equal_idx];
+                if (obj.use_scaling)
+                    gx[non_equal_idx] = (curv_snorm - obj.max_kap*obj.max_kap) * obj.scale_cx(constrain_idx);
                 else
-                    gx[non_equal_idx] = (curv_snorm - max_kap*max_kap) * cur_scale;
-                if (rho * gx[non_equal_idx] + curv_mu > 0)
+                    gx[non_equal_idx] = (curv_snorm - obj.max_kap*obj.max_kap) * obj.cur_scale;
+                if (obj.rho * gx[non_equal_idx] + curv_mu > 0)
                 {
                     double denominator = 1.0 / (vx*vx + delta_sigl);
-                    cost += getAugmentedCost(gx[non_equal_idx], curv_mu);
-                    if (use_scaling)
-                        aug_grad = getAugmentedGrad(gx[non_equal_idx], curv_mu) * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], curv_mu);
+                    if (obj.use_scaling)
+                        aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], curv_mu) * obj.scale_cx(constrain_idx);
                     else
-                        aug_grad = getAugmentedGrad(gx[non_equal_idx], curv_mu) * cur_scale;
+                        aug_grad = obj.getAugmentedGrad(gx[non_equal_idx], curv_mu) * obj.cur_scale;
                     grad_wz += aug_grad * denominator * 2.0 * wz;
                     grad_vx2 -= aug_grad * curv_snorm * denominator;
                 }
                 else
                 {
-                    cost += -0.5 * curv_mu * curv_mu / rho;
+                    cost += -0.5 * curv_mu * curv_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
 
                 // attitude
-                double att_mu = mu[non_equal_idx];
-                gx[non_equal_idx] = (min_cxi - cos_xi) * scale_cx(constrain_idx);
-                if (rho * gx[non_equal_idx] + att_mu > 0)
+                double att_mu = obj.mu[non_equal_idx];
+                gx[non_equal_idx] = (obj.min_cxi - cos_xi) * obj.scale_cx(constrain_idx);
+                if (obj.rho * gx[non_equal_idx] + att_mu > 0)
                 {
-                    cost += getAugmentedCost(gx[non_equal_idx], att_mu);
-                    grad_se2 -= getAugmentedGrad(gx[non_equal_idx], att_mu) * grad_cos_xi * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], att_mu);
+                    grad_se2 -= obj.getAugmentedGrad(gx[non_equal_idx], att_mu) * grad_cos_xi * obj.scale_cx(constrain_idx);
                 }
                 else
                 {
-                    cost += -0.5 * att_mu * att_mu / rho;
+                    cost += -0.5 * att_mu * att_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
 
                 // surface variation
-                double sig_mu = mu[non_equal_idx];
-                if (use_scaling)
-                    gx[non_equal_idx] = (sigma - max_sig) * scale_cx(constrain_idx);
+                double sig_mu = obj.mu[non_equal_idx];
+                if (obj.use_scaling)
+                    gx[non_equal_idx] = (sigma - obj.max_sig) * obj.scale_cx(constrain_idx);
                 else
-                    gx[non_equal_idx] = (sigma - max_sig) * sig_scale;
-                if (rho * gx[non_equal_idx] + sig_mu > 0)
+                    gx[non_equal_idx] = (sigma - obj.max_sig) * obj.sig_scale;
+                if (obj.rho * gx[non_equal_idx] + sig_mu > 0)
                 {
-                    cost += getAugmentedCost(gx[non_equal_idx], sig_mu);
-                    if (use_scaling)
-                        grad_se2 += getAugmentedGrad(gx[non_equal_idx], sig_mu) * grad_sigma * scale_cx(constrain_idx);
+                    cost += obj.getAugmentedCost(gx[non_equal_idx], sig_mu);
+                    if (obj.use_scaling)
+                        grad_se2 += obj.getAugmentedGrad(gx[non_equal_idx], sig_mu) * grad_sigma * obj.scale_cx(constrain_idx);
                     else
-                        grad_se2 += getAugmentedGrad(gx[non_equal_idx], sig_mu) * grad_sigma * sig_scale;
+                        grad_se2 += obj.getAugmentedGrad(gx[non_equal_idx], sig_mu) * grad_sigma * obj.sig_scale;
                 }
                 else
                 {
-                    cost += -0.5 * sig_mu * sig_mu / rho;
+                    cost += -0.5 * sig_mu * sig_mu / obj.rho;
                 }
                 non_equal_idx++;
                 constrain_idx++;
@@ -986,7 +1044,7 @@ namespace uneven_planner
                 
                 s1 += step;
             }
-            base_time += minco_se2.pos_minco.T1(i);
+            base_time += obj.minco_se2.pos_minco.T1(i);
         }
     }
 
@@ -1061,8 +1119,8 @@ namespace uneven_planner
             pt.z = 0.0;
             sphere.points.push_back(pt); 
         }
-        debug_pub.publish(sphere);
-        debug_pub.publish(line_strip);
+        obj.debug_pub.publish(sphere);
+        obj.debug_pub.publish(line_strip);
     }
 
     void ALMTrajOpt::visSE2Traj(const SE2Trajectory& traj)
@@ -1096,7 +1154,7 @@ namespace uneven_planner
         p.pose.orientation.z = sin(yaw/2.0);
         back_end_path.poses.push_back(p);
 
-        se2_pub.publish(back_end_path);
+        obj.se2_pub.publish(back_end_path);
     }
 
     void ALMTrajOpt::visSE3Traj(const SE2Trajectory& traj)
@@ -1136,6 +1194,6 @@ namespace uneven_planner
         p.pose.orientation.z = q.z();
         back_end_path.poses.push_back(p);
 
-        se3_pub.publish(back_end_path);
+        obj.se3_pub.publish(back_end_path);
     }
 }

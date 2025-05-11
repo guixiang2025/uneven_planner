@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Arguments -->
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="prius_model" default="$(find prius_description)/urdf/prius.urdf" />
+  <arg name="world" default="$(find car_demo)/worlds/empty.world" />
+
+  <!-- Launch Gazebo with empty world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="verbose" value="true" />
+    <arg name="world_name" value="$(arg world)" />
+    <arg name="gui" value="$(arg gui)" />
+  </include>
+
+  <!-- Load the Prius model description -->
+  <param name="robot_description" textfile="$(arg prius_model)" />
+  
+  <!-- Spawn the Prius model in Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+        args="-param robot_description -urdf -x 0 -y 0 -z 0.5 -model prius" />
+  
+  <!-- Robot state publisher for tf -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <remap from="joint_states" to="/prius/joint_states" />
+  </node>
+  
+  <!-- Fake localization for ground truth -->
+  <node pkg="fake_localization" type="fake_localization" name="fake_localization">
+    <remap from="base_pose_ground_truth" to="/prius/base_pose_ground_truth" />
+  </node>
+  
+  <!-- Static transform for odometry -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="odom_broadcaster" 
+        args="0 0 0 0 0 0 odom base_link" />
+
+  <!-- Launch the Prius controller -->
+  <include file="$(find prius_controller)/launch/prius_controller.launch" />
+  
+  <!-- Launch RViz if requested -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d $(find prius_controller)/rviz/prius_view.rviz" required="false" />
+  </group>
+</launch> 

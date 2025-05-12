@@ -140,7 +140,7 @@
     </inertial>
     <collision name="front_left_wheel_collision">
       <geometry>
-        <sphere radius="0.031265"/>
+        <cylinder radius="0.031265" length="0.02"/>
       </geometry>
     </collision>
     <visual>
@@ -159,7 +159,7 @@
     </inertial>
     <collision name="front_right_wheel_collision">
       <geometry>
-        <sphere radius="0.031265"/>
+        <cylinder radius="0.031265" length="0.02"/>
       </geometry>
     </collision>
     <visual>
@@ -178,7 +178,7 @@
     </inertial>
     <collision name="rear_left_wheel_collision">
       <geometry>
-        <sphere radius="0.031265"/>
+        <cylinder radius="0.031265" length="0.02"/>
       </geometry>
     </collision>
     <visual>
@@ -197,7 +197,7 @@
     </inertial>
     <collision name="rear_right_wheel_collision">
       <geometry>
-        <sphere radius="0.031265"/>
+        <cylinder radius="0.031265" length="0.02"/>
       </geometry>
     </collision>
     <visual>

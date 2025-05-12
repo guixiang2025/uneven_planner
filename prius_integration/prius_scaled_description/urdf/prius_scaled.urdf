@@ -1,0 +1,348 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="prius_scaled">
+  <!--- Surface properties must come first? -->
+  <gazebo reference="front_left_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.001</minDepth>
+    <kp>1e8</kp>
+  </gazebo>
+  <gazebo reference="front_right_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.001</minDepth>
+    <kp>1e8</kp>
+  </gazebo>
+  <gazebo reference="rear_left_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.001</minDepth>
+    <kp>1e8</kp>
+  </gazebo>
+  <gazebo reference="rear_right_wheel">
+    <mu1>0.9</mu1>
+    <mu2>0.9</mu2>
+    <minDepth>0.001</minDepth>
+    <kp>1e8</kp>
+  </gazebo>
+
+  <link name="base_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  <joint name="base_link_connection" type="fixed">
+    <parent link="base_link"/>
+    <child link="chassis"/>
+    <origin xyz="0.145 0 0" rpy="0 0 1.57"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <link name="chassis">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/hybrid_body.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+
+    <collision name="chassis">
+      <origin xyz="0.0 0.005 0.0625" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.17526 0.21 0.095"/>
+      </geometry>
+    </collision>
+
+    <collision name="front_bumper">
+      <origin xyz="0.0 -0.2 0.0458488" rpy="0.0 0 0"/>
+      <geometry>
+        <box size="0.1337282 0.048 0.0566691"/>
+      </geometry>
+    </collision>
+
+    <collision name="hood">
+      <origin xyz="0.0 -0.1900842 0.0676305" rpy="0.341247 0 0"/>
+      <geometry>
+        <box size="0.1597968 0.0493107 0.0265468"/>
+      </geometry>
+    </collision>
+
+    <collision name="windshield">
+      <origin xyz="0.0 -0.0875105 0.1032268" rpy="0.335476 0 0"/>
+      <geometry>
+        <box size="0.1168381 0.1654253 0.0272347"/>
+      </geometry>
+    </collision>
+
+    <collision name="top_front">
+      <origin xyz="0.0 0.0161236 0.1386042" rpy="0.135030 0 0"/>
+      <geometry>
+        <box size="0.1279154 0.0625988 0.0171868"/>
+      </geometry>
+    </collision>
+
+    <collision name="top_rear">
+      <origin xyz="0.0 0.0817696 0.1360069" rpy="-0.068997 0 0"/>
+      <geometry>
+        <box size="0.1285130 0.0771189 0.0226557"/>
+      </geometry>
+    </collision>
+
+    <collision name="rear_window">
+      <origin xyz="0.0 0.1640531 0.1175126" rpy="-0.262017 0 0"/>
+      <geometry>
+        <box size="0.1267845 0.1116344 0.0244286"/>
+      </geometry>
+    </collision>
+
+    <collision name="trunk">
+      <origin xyz="0.0 0.1637059 0.0888180" rpy="0.0 0 0"/>
+      <geometry>
+        <box size="0.1788064 0.1138988 0.0482746"/>
+      </geometry>
+    </collision>
+
+    <collision name="back_bumper">
+      <origin xyz="0.0 0.2054454 0.0577870" rpy="0.0 0 0"/>
+      <geometry>
+        <box size="0.1781650 0.0512093 0.0581427"/>
+      </geometry>
+    </collision>
+
+    <inertial>
+      <mass value="13.56"/>
+      <origin xyz="0 0 0.048" rpy="0 0 1.5708"/>
+      <inertia ixx="0.2581134" ixy="0.0" ixz="0.0" iyy="0.0591308" iyz="0.0" izz="0.2681950"/>
+    </inertial>
+  </link>
+  
+  <link name="fl_axle">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0004" ixy="0.0" ixz="0.0" iyy="0.0004" iyz="0.0" izz="0.0004"/>
+    </inertial>
+  </link>
+  <link name="fr_axle">
+    <inertial>
+      <mass value="0.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0004" ixy="0.0" ixz="0.0" iyy="0.0004" iyz="0.0" izz="0.0004"/>
+    </inertial>
+  </link>
+  
+  <link name="front_left_wheel">
+    <inertial>
+      <mass value="1.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0058631" ixy="0.0" ixz="0.0" iyy="0.0033553" iyz="0.0" izz="0.0033553"/>
+    </inertial>
+    <collision name="front_left_wheel_collision">
+      <geometry>
+        <sphere radius="0.031265"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/wheel.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="front_right_wheel">
+    <inertial>
+      <mass value="1.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0058631" ixy="0.0" ixz="0.0" iyy="0.0033553" iyz="0.0" izz="0.0033553"/>
+    </inertial>
+    <collision name="front_right_wheel_collision">
+      <geometry>
+        <sphere radius="0.031265"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/wheel.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="rear_left_wheel">
+    <inertial>
+      <mass value="1.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0058631" ixy="0.0" ixz="0.0" iyy="0.0033553" iyz="0.0" izz="0.0033553"/>
+    </inertial>
+    <collision name="rear_left_wheel_collision">
+      <geometry>
+        <sphere radius="0.031265"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/wheel.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="rear_right_wheel">
+    <inertial>
+      <mass value="1.1"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.0058631" ixy="0.0" ixz="0.0" iyy="0.0033553" iyz="0.0" izz="0.0033553"/>
+    </inertial>
+    <collision name="rear_right_wheel_collision">
+      <geometry>
+        <sphere radius="0.031265"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/wheel.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+  </link>
+  
+  <link name="steering_wheel">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0014583" ixy="0.0" ixz="0.0" iyy="0.0014583" iyz="0.0" izz="0.00125"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.302101 0 0"/>
+      <geometry>
+        <mesh filename="package://prius_scaled_description/meshes/steering_wheel.obj" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </visual>
+  </link>
+
+  <joint name="steering_joint" type="continuous">
+    <origin xyz="0.0357734 -0.0627868 0.0988243" rpy="-1.302101 0 0"/>
+    <parent link="chassis"/>
+    <child link="steering_wheel"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-7.85" upper="7.85" effort="10000000" velocity="1000000"/>
+  </joint>
+
+  <joint name="front_left_steer_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="fl_axle"/>
+    <origin xyz="0.0767 -0.141 0.03" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.8727" upper="0.8727" effort="10000000" velocity="1000000"/>
+  </joint>
+  
+  <joint name="front_right_steer_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="fr_axle"/>
+    <origin xyz="-0.0767 -0.141 0.03" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-0.8727" upper="0.8727" effort="10000000" velocity="1000000"/>
+  </joint>
+  
+  <joint name="front_left_wheel_joint" type="continuous">
+    <parent link="fl_axle"/>
+    <child link="front_left_wheel"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  
+  <joint name="front_right_wheel_joint" type="continuous">
+    <parent link="fr_axle"/>
+    <child link="front_right_wheel"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  
+  <joint name="rear_left_wheel_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="rear_left_wheel"/>
+    <origin xyz="0.0793 0.145 0.03" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  
+  <joint name="rear_right_wheel_joint" type="continuous">
+    <parent link="chassis"/>
+    <child link="rear_right_wheel"/>
+    <origin xyz="-0.0793 0.145 0.03" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+
+  <!-- Sensor links and fixed joints -->
+  <link name="center_laser_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  <joint name="center_laser_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="center_laser_link"/>
+    <origin xyz="0 0.04 0.18" rpy="0 0 -1.5707"/>
+  </joint>
+
+  <link name="front_left_laser_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  <joint name="front_left_laser_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="front_left_laser_link"/>
+    <origin xyz="0.1 -0.23 0.05" rpy="0 0.05 0"/>
+  </joint>
+
+  <link name="front_right_laser_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.0001" ixy="0.0" ixz="0.0" iyy="0.0001" iyz="0.0" izz="0.0001"/>
+    </inertial>
+  </link>
+  <joint name="front_right_laser_joint" type="fixed">
+    <parent link="chassis"/>
+    <child link="front_right_laser_link"/>
+    <origin xyz="-0.1 -0.23 0.05" rpy="0 0.05 3.14"/>
+  </joint>
+
+  <gazebo reference="base_link_connection">
+    <disableFixedJointLumping>true</disableFixedJointLumping>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="pruis_hybrid_drive" filename="libPriusHybridPlugin.so">
+      <chassis>chassis</chassis>
+      <front_left_wheel>front_left_wheel_joint</front_left_wheel>
+      <front_right_wheel>front_right_wheel_joint</front_right_wheel>
+      <front_left_wheel_steering>front_left_steer_joint</front_left_wheel_steering>
+      <front_right_wheel_steering>front_right_steer_joint</front_right_wheel_steering>
+      <back_left_wheel>rear_left_wheel_joint</back_left_wheel>
+      <back_right_wheel>rear_right_wheel_joint</back_right_wheel>
+      <steering_wheel>steering_joint</steering_wheel>
+      <chassis_aero_force_gain>0.63045</chassis_aero_force_gain>
+      <front_torque>85.940044</front_torque>
+      <back_torque>0</back_torque>
+      <front_brake_torque>103.128053</front_brake_torque>
+      <back_brake_torque>103.128053</back_brake_torque>
+      <max_speed>2.0</max_speed>
+      <min_gas_flow>0.05</min_gas_flow>
+      <gas_efficiency>0.75</gas_efficiency>
+      <battery_charge_watt_hours>18000</battery_charge_watt_hours>
+      <battery_charge_percentage>0.8</battery_charge_percentage>
+      <battery_discharge_percentage>0.2</battery_discharge_percentage>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
+      <jointName>rear_right_wheel_joint, rear_left_wheel_joint, front_right_wheel_joint, front_left_wheel_joint, front_right_steer_joint, front_left_steer_joint, steering_joint</jointName>
+      <updateRate>100.0</updateRate>
+      <alwaysOn>true</alwaysOn>
+    </plugin>
+  </gazebo>
+</robot> 

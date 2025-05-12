@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Arguments -->
+  <arg name="map_name" default="hill" />
+  <arg name="gui" default="true"/>
+  <arg name="rviz" default="true"/>
+  <arg name="prius_model" default="$(find prius_scaled_description)/urdf/prius_scaled.urdf" />
+  <arg name="x_pos" default="4.3"/>
+  <arg name="y_pos" default="-4.3"/>
+  <arg name="z_pos" default="0.5"/>
+  <arg name="Y_pos" default="1.57"/>
+
+  <!-- Load parameters for uneven_planner -->
+  <rosparam command="load" file="$(find plan_manager)/params/run_$(arg map_name).yaml" />
+
+  <!-- Launch the uneven_planner manager node -->
+  <node pkg="plan_manager" name="manager_node" type="manager_node" output="screen">
+    <param name="uneven_map/map_pcd" type="string" value="$(find uneven_map)/maps/$(arg map_name).pcd" />
+    <param name="uneven_map/map_file" type="string" value="$(find uneven_map)/maps/$(arg map_name).map" />
+    <remap from="~cmd" to="/racebot/cmd_vel"/>
+    <remap from="~odom" to="/prius/base_pose_ground_truth"/>
+    <remap from="~traj" to="/ugv/trajectory"/>
+    <remap from="odom" to="/prius/base_pose_ground_truth"/>
+  </node>
+
+  <!-- Launch Gazebo with the specified world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="verbose" value="true" />
+    <arg name="world_name" value="$(find carsim)/worlds/map_$(arg map_name).world"/> 
+    <arg name="gui" value="$(arg gui)" />
+  </include>
+
+  <!-- Load the scaled Prius model description -->
+  <param name="robot_description" textfile="$(arg prius_model)" />
+  
+  <!-- Spawn the scaled Prius model in Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+        args="-param robot_description -urdf -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -Y $(arg Y_pos) -model prius_scaled" />
+  
+  <!-- Robot state publisher for tf -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <remap from="joint_states" to="/prius/joint_states" />
+  </node>
+  
+  <!-- Fake localization for ground truth -->
+  <node pkg="fake_localization" type="fake_localization" name="fake_localization">
+    <remap from="base_pose_ground_truth" to="/prius/base_pose_ground_truth" />
+  </node>
+  
+  <!-- Static transform for odometry -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="odom_broadcaster" 
+        args="0 0 0 0 0 0 odom base_link" />
+
+  <!-- Launch the scaled Prius controller -->
+  <node pkg="prius_scaled_controller" type="prius_scaled_controller_node" name="prius_scaled_controller" output="screen">
+    <param name="max_velocity" value="1.0" />
+    <param name="max_steering_angle" value="0.7" />
+    <param name="throttle_gain" value="0.7" />
+    <param name="brake_gain" value="0.7" />
+  </node>
+  
+  <!-- Launch RViz if requested -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d $(find plan_manager)/rviz/default.rviz" required="true" />
+  </group>
+</launch>

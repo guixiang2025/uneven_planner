@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Launch Gazebo with an empty world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="verbose" value="true"/>
+    <arg name="gui" value="true"/>
+  </include>
+
+  <!-- Load the scaled Prius model description -->
+  <param name="robot_description" textfile="$(find prius_scaled_description)/urdf/prius_scaled.urdf" />
+  
+  <!-- Spawn the model in Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+        args="-param robot_description -urdf -x 0 -y 0 -z 0.05 -model prius_scaled" />
+  
+  <!-- Robot state publisher for tf -->
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
+    <remap from="joint_states" to="/prius/joint_states" />
+  </node>
+  
+  <!-- Fake localization -->
+  <node pkg="fake_localization" type="fake_localization" name="fake_localization">
+    <remap from="base_pose_ground_truth" to="/prius/base_pose_ground_truth" />
+  </node>
+
+  <!-- Launch RViz for visualization -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find prius_scaled_description)/launch/prius_scaled.rviz" />
+</launch> 

@@ -73,6 +73,6 @@
   <!-- Launch RViz if requested -->
   <group if="$(arg rviz)">
     <node name="rviz" pkg="rviz" type="rviz" 
-          args="-d /home/grey/catkin_ws/src/uneven_planner/prius_integration/prius_scaled_description/rviz/prius_scaled.rviz" required="true" />
+          args="-d $(find prius_scaled_description)/rviz/prius_scaled.rviz" required="true" />
   </group>
 </launch>

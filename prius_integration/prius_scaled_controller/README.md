@@ -2,6 +2,16 @@
 
 这个包提供了针对1:10比例的Prius模型的控制器，用于在不平坦地形上进行导航。
 
+## 与 prius_controller 包的关系
+
+`prius_scaled_controller` 与 `prius_controller` 包是**完全独立实现**的控制器，两者之间没有任何直接的代码依赖、头文件 include、库链接或启动文件 include。你对 `prius_controller` 包的任何修改（包括底层控制逻辑、接口、参数等），都不会影响 `prius_scaled_controller` 的功能和运行。
+
+- `prius_scaled_controller` 专为 1:10 比例 Prius 车辆模型设计，所有控制逻辑、节点、参数均独立实现。
+- 启动文件、依赖声明、代码实现等均未引用 `prius_controller` 包。
+- 如需修改 1:10 比例 Prius 车辆的控制逻辑，请直接修改本包代码。
+
+---
+
 ## 功能
 
 - 接收轨迹或速度命令，转换为Prius控制命令

@@ -30,6 +30,7 @@ manager_node:
     in_test: false
 
   alm_traj_opt:
+    param_Ps_slip_weight: 1.0
     rho_T: 500.0
     rho_ter: 10.0
     max_vel: 0.5

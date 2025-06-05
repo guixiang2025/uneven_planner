@@ -1,0 +1,149 @@
+# Slip-Aware Trajectory Planning Test Configurations
+# Configuration file for automated testing
+
+# Test Environment Settings
+environment:
+  world_file: "map_hill.world"
+  robot_model: "racebot"
+  simulation_engine: "gazebo"
+  
+# Test Case Definitions
+test_cases:
+  test_case_1:
+    name: "Flat Terrain Verification"
+    description: "Verify slip cost calculations are zero on flat terrain when disabled"
+    parameters:
+      temp_param_Ps: 0.0
+    environment:
+      terrain_type: "flat"
+      start_position: [4.3, -4.3, 1.0]  # x, y, z
+      start_orientation: 1.57  # yaw in radians
+    expected_results:
+      slip_costs_all_zero: true
+      calculation_accuracy: 100.0
+    log_file: "test_case1_ps0_flat.log"
+    status: "completed"
+    
+  test_case_2:
+    name: "Slope Terrain with Slip Cost"
+    description: "Verify slip cost calculations work correctly on slope terrain"
+    parameters:
+      temp_param_Ps: 1.0
+    environment:
+      terrain_type: "slope"
+      start_position: [4.3, -4.3, 1.0]
+      start_orientation: 1.57
+    expected_results:
+      slip_costs_non_zero: true
+      min_calculations: 100
+      calculation_accuracy: 99.0
+    log_file: "test_case2_ps1_slope.log"
+    status: "completed"
+    
+  test_case_3:
+    name: "High Slip Weight Comparison"
+    description: "Compare trajectory behavior with higher slip cost weighting"
+    parameters:
+      temp_param_Ps: 10.0
+    environment:
+      terrain_type: "slope"
+      start_position: [4.3, -4.3, 1.0]
+      start_orientation: 1.57
+    expected_results:
+      slip_costs_higher_than_tc2: true
+      trajectory_differences: true
+      speed_reduction: true
+    log_file: "test_case3_ps10_slope.log"
+    status: "planned"
+
+# Analysis Settings
+analysis:
+  tolerance:
+    calculation_accuracy: 1e-6
+    relative_error: 1e-6
+  
+  output_formats:
+    - "console"
+    - "markdown"
+    - "json"
+  
+  metrics:
+    - "slip_cost_statistics"
+    - "velocity_analysis"
+    - "trajectory_comparison"
+    - "kpi_assessment"
+
+# Logging Configuration
+logging:
+  ros_log_level: "debug"
+  capture_topics:
+    - "/rosout"
+  filter_patterns:
+    - "ALMTrajOpt.*Slip cost"
+    - "slip_cost"
+  
+  output_directory: "tests/logs/"
+  backup_logs: true
+
+# ROS Environment
+ros:
+  workspace: "/home/grey/catkin_ws"
+  setup_script: "devel/setup.bash"
+  launch_script: "src/uneven_planner/hill.sh"
+  
+  nodes:
+    manager_node: "/manager_node"
+    
+  services:
+    set_logger_level: "/manager_node/set_logger_level"
+    
+  topics:
+    rosout: "/rosout"
+    debug_path: "/alm/debug_path"
+    
+# Test Execution Settings
+execution:
+  timeout_seconds: 300  # 5 minutes per test
+  retry_attempts: 3
+  cleanup_between_tests: true
+  
+  manual_steps:
+    - "Launch RViz visualization"
+    - "Set goal point in slope terrain"
+    - "Execute trajectory planning"
+    - "Verify trajectory completion"
+
+# KPI Thresholds
+kpi_thresholds:
+  calculation_accuracy_min: 99.0  # percent
+  non_zero_cost_ratio_min: 80.0   # percent for slope terrain
+  trajectory_completion_rate: 95.0 # percent
+  
+# Report Generation
+reports:
+  template_directory: "tests/templates/"
+  output_directory: "tests/reports/"
+  
+  formats:
+    - type: "markdown"
+      template: "test_report_template.md"
+    - type: "html"
+      template: "test_report_template.html"
+      
+  include_sections:
+    - "executive_summary"
+    - "test_results"
+    - "kpi_analysis"
+    - "detailed_data"
+    - "recommendations"
+
+# Data Management
+data:
+  reference_trajectories: "tests/data/reference_trajectories/"
+  backup_frequency: "after_each_test"
+  retention_policy: "keep_all"  # or specify days
+  
+  export_formats:
+    - "csv"
+    - "json"
+    - "pickle" 

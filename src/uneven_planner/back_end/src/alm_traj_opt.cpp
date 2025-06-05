@@ -930,7 +930,8 @@ namespace uneven_planner
                 non_equal_idx++;
                 constrain_idx++;
 
-                // Debug slip cost calculations
+                // === 打滑成本计算 (Slip Cost Calculation) ===
+                // 保留成本计算，注释掉梯度计算
                 double current_time = base_time + s1;
                 double current_velocity = v_norm;
                 double phi_x_rad = atan(sin_phix / inv_cos_vphix);
@@ -938,14 +939,38 @@ namespace uneven_planner
                 double current_slope = sqrt(phi_x_rad * phi_x_rad + phi_y_rad * phi_y_rad);
                 double cost_before_slip = cost;
                 
-                ROS_DEBUG_STREAM("[ALMTrajOpt] Slip cost debug at segment " << i << ", sample " << j 
+                // 计算打滑成本（使用更稳定的坡度平方计算）
+                double slip_slope_squared = sin_phix * sin_phix + sin_phiy * sin_phiy;
+                double slip_cost_delta = temp_param_Ps * slip_slope_squared * current_velocity * current_velocity * step;
+                
+                // 添加打滑成本到总成本
+                cost += slip_cost_delta;
+                
+                // 打滑成本梯度计算 - 暂时注释掉
+                /*
+                // 计算打滑成本对速度的梯度
+                double grad_slip_vx = temp_param_Ps * slip_slope_squared * 2.0 * current_velocity * step;
+                grad_vx2 += grad_slip_vx;
+                
+                // 计算打滑成本对地形坡度的梯度
+                double grad_slip_sin_phix = temp_param_Ps * 2.0 * sin_phix * current_velocity * current_velocity * step;
+                double grad_slip_sin_phiy = temp_param_Ps * 2.0 * sin_phiy * current_velocity * current_velocity * step;
+                grad_se2 += grad_slip_sin_phix * grad_sin_phix + grad_slip_sin_phiy * grad_sin_phiy;
+                */
+                
+                // ROS调试日志输出（保留完整的调试信息）
+                ROS_DEBUG_STREAM("[ALMTrajOpt] Slip cost calculation at segment " << i << ", sample " << j 
                                 << " | time: " << current_time
                                 << " | velocity: " << current_velocity
-                                << " | phi_x_rad: " << phi_x_rad
-                                << " | phi_y_rad: " << phi_y_rad  
-                                << " | current_slope: " << current_slope
+                                << " | v_norm: " << v_norm  
+                                << " | sin_phix: " << sin_phix
+                                << " | sin_phiy: " << sin_phiy  
+                                << " | slip_slope_squared: " << slip_slope_squared
+                                << " | step: " << step
+                                << " | temp_param_Ps: " << temp_param_Ps
+                                << " | slip_cost_delta: " << slip_cost_delta
                                 << " | cost_before_slip: " << cost_before_slip
-                                << " | temp_param_Ps: " << temp_param_Ps);
+                                << " | total_cost: " << cost);
 
                 // process with vx, wz, ax
                 grad_v += grad_vx2 * inv_cos_vphix * inv_cos_vphix * 2.0 * vel;

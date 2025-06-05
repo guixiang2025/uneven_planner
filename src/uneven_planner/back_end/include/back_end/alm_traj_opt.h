@@ -34,6 +34,7 @@ namespace uneven_planner
             double max_kap;
             double min_cxi;
             double max_sig;
+            double param_Ps_slip_weight;  // 打滑权重系数
 
             /// ALM
             bool   use_scaling;

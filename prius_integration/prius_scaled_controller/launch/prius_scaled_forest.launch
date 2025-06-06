@@ -3,12 +3,12 @@
   <!-- Arguments -->
   <arg name="map_name" default="forest" />
   <arg name="gui" default="true"/>
-  <arg name="rviz" default="false"/>
+  <arg name="rviz" default="true"/>
   <arg name="prius_model" default="$(find prius_scaled_description)/urdf/prius_scaled.urdf" />
-  <arg name="x_pos" default="0.0"/>
-  <arg name="y_pos" default="0.0"/>
-  <arg name="z_pos" default="5.0"/>
-  <arg name="Y_pos" default="0.0"/>
+  <arg name="x_pos" default="4.3"/>
+  <arg name="y_pos" default="-4.3"/>
+  <arg name="z_pos" default="0.5"/>
+  <arg name="Y_pos" default="1.57"/>
 
   <!-- Load parameters for uneven_planner -->
   <rosparam command="load" file="$(find plan_manager)/params/run_$(arg map_name).yaml" />
@@ -69,4 +69,10 @@
     <param name="throttle_gain" value="0.7" />
     <param name="brake_gain" value="0.7" />
   </node>
+  
+  <!-- Launch RViz if requested -->
+  <group if="$(arg rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" 
+          args="-d /home/grey/catkin_ws/src/uneven_planner/prius_integration/prius_scaled_description/rviz/prius_scaled.rviz" required="true" />
+  </group>
 </launch> 

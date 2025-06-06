@@ -7,7 +7,7 @@
   <arg name="prius_model" default="$(find prius_scaled_description)/urdf/prius_scaled.urdf" />
   <arg name="x_pos" default="0.0"/>
   <arg name="y_pos" default="0.0"/>
-  <arg name="z_pos" default="5.0"/>
+  <arg name="z_pos" default="2.0"/>
   <arg name="Y_pos" default="0.0"/>
 
   <!-- Load parameters for uneven_planner -->
@@ -28,6 +28,9 @@
     <arg name="verbose" value="true" />
     <arg name="world_name" value="/home/grey/catkin_ws/src/uneven_planner/src/carsim/worlds/map_$(arg map_name).world"/> 
     <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="physics" value="ode"/>
   </include>
 
   <!-- Load the scaled Prius model description -->
@@ -45,10 +48,8 @@
     <remap from="joint_states" to="/prius/joint_states" />
   </node>
   
-  <!-- Fake localization for ground truth -->
-  <node pkg="fake_localization" type="fake_localization" name="fake_localization">
-    <remap from="base_pose_ground_truth" to="/prius/base_pose_ground_truth" />
-  </node>
+  <!-- Model TF Publisher for ground truth -->
+  <node pkg="prius_scaled_controller" type="model_tf_publisher.py" name="model_tf_publisher" output="screen" />
   
   <!-- Static transform for map to odom -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_odom_broadcaster" 
@@ -58,9 +59,9 @@
   <node pkg="tf2_ros" type="static_transform_publisher" name="map_to_world_broadcaster" 
         args="0 0 0 0 0 0 map world" />
   
-  <!-- Static transform for odometry -->
-  <node pkg="tf2_ros" type="static_transform_publisher" name="odom_broadcaster" 
-        args="0 0 0 0 0 0 odom base_link" />
+  <!-- Static transform for odometry - REMOVED: Conflicts with fake_localization dynamic TF -->
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="odom_broadcaster" 
+        args="0 0 0 0 0 0 odom base_link" /> -->
 
   <!-- Launch the scaled Prius controller -->
   <node pkg="prius_scaled_controller" type="prius_scaled_controller_node" name="prius_scaled_controller" output="screen">

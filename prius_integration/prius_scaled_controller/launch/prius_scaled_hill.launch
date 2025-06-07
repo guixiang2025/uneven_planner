@@ -8,8 +8,8 @@
   <arg name="prius_model" default="$(find prius_scaled_description)/urdf/prius_scaled.urdf" />
   <arg name="x_pos" default="0.7"/>
   <arg name="y_pos" default="1.3"/>
-  <arg name="z_pos" default="1.59"/>
-  <arg name="Y_pos" default="0.0"/>
+  <arg name="z_pos" default="0.5"/>
+  <arg name="Y_pos" default="-1.57"/>
 
   <!-- Load Prius-specific conservative parameters -->
   <rosparam command="load" file="$(find prius_scaled_controller)/config/prius_scaled_hill.yaml" />

@@ -54,7 +54,7 @@
   
   <!-- Robot state publisher for tf -->
   <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher">
-    <param name="publish_frequency" value="50.0" />
+    <param name="publish_frequency" value="20.0" />
     <param name="use_tf_static" value="true" />
     <param name="ignore_timestamp" value="true" />
     <remap from="joint_states" to="/joint_states" />

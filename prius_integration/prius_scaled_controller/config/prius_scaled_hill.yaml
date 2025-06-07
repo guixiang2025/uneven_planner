@@ -1,0 +1,98 @@
+# Prius缩放模型专用保守配置
+# 针对物理限制和摩擦约束的优化参数
+
+manager_node:
+  uneven_map:
+    iter_num: 2
+    map_size_x: 10.0
+    map_size_y: 10.0
+    ellipsoid_x: 0.06          # 缩小椭球参数，适应小尺寸
+    ellipsoid_y: 0.06
+    ellipsoid_z: 0.08
+    xy_resolution: 0.05
+    yaw_resolution: 0.1
+    min_cnormal: 0.8
+    max_rho: 0.05
+    gravity: 9.81
+    mass: 0.78                 # 缩放后质量 (原值/10)
+
+  kino_astar:
+    yaw_resolution: 3.15
+    lambda_heu: 1.0
+    weight_r2: 1.0
+    weight_so2: 0.5
+    weight_v_change: 0.0
+    weight_delta_change: 0.0
+    weight_sigma: 10.0
+    time_interval: 0.4         # 增加时间间隔，降低动态要求
+    collision_interval: 0.08   # 更安全的碰撞检测间隔
+    oneshot_range: 0.8         # 减小直达范围
+    wheel_base: 0.286          # Prius缩放轴距
+    max_steer: 0.6458          # 基于URDF限制 (37°)
+    max_vel: 1.25              # 适度提高但保守的最大速度
+    in_test: false
+
+  alm_traj_opt:
+    rho_T: 100000.0
+    rho_ter: 10.0
+    max_vel: 1.25              # 与kino_astar一致
+    max_acc_lon: 0.25          # 大幅降低纵向加速度 (从5.0降至0.25)
+    max_acc_lat: 0.33          # 大幅降低横向加速度 (从10.0降至0.33)
+    max_kap: 2.4               # 基于轴距的最大曲率 (1/0.286*0.7)
+    min_cxi: 0.8
+    max_sig: 0.05
+    use_scaling: true
+    rho: 1.0
+    beta: 1000.0
+    gamma: 1.0
+    epsilon_con: 0.001
+    max_iter: 10
+    g_epsilon: 1.0e-03
+    min_step: 1.0e-32
+    inner_max_iter: 10000
+    delta: 1.0e-4
+    mem_size: 256
+    past: 3
+    int_K: 16
+    in_test: false
+    in_debug: false
+
+  manager:
+    piece_len: 0.4             # 增加轨迹段长度，更平滑
+    mean_vel: 0.8              # 保守的平均速度
+    init_time_times: 1.5       # 增加初始时间系数
+    yaw_piece_times: 2.5       # 增加航向时间系数
+    init_sig_vel: 0.03         # 降低初始速度变化
+
+# MPC控制器保守配置
+mpc:
+  du_threshold: 0.001
+  dt: 0.02
+  max_iter: 150
+  predict_steps: 25            # 减少预测步数，提高实时性
+  delay_num: 2                 # 考虑控制延迟
+  max_omega: 3.0               # 大幅降低最大角速度 (从24.0降至3.0)
+  max_domega: 1.5              # 降低角加速度 (从10.0降至1.5)
+  max_speed: 1.25              # 与规划器一致
+  min_speed: -0.5              # 保守的倒车速度
+  max_accel: 0.5               # 大幅降低加速度 (从10.0降至0.5)
+  test_mpc: false
+  bk_mode: false
+  matrix_q: [150.0, 150.0, 5.0] # 增加位置权重，提高精度
+  matrix_r: [0.1, 0.1]         # 增加控制权重，平滑控制
+  matrix_rd: [0.1, 150.0]      # 平滑控制变化
+  max_steer: 0.6458            # 与URDF一致
+  max_dsteer: 0.8              # 降低转向速度 (从1.5降至0.8)
+  wheel_base: 0.286            # Prius轴距
+  model_type: 2                # 阿克曼模型
+
+# Prius控制器参数
+prius_controller:
+  max_steering_angle: 0.6458   # 与URDF一致 (37度)
+  max_velocity: 1.25           # 与规划器一致  
+  throttle_gain: 0.3           # 保守的油门增益
+  brake_gain: 0.7              # 较强的制动增益
+  speed_error_tolerance: 0.05   # 更严格的速度误差容忍
+  steering_deadband: 0.005     # 转向死区
+  throttle_deadband: 0.02      # 油门死区  
+  brake_deadband: 0.02         # 制动死区 

@@ -15,6 +15,9 @@ class ModelTFPublisher:
         
         self.model_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.model_states_callback)
         
+        # Store last timestamp to avoid duplicate TF broadcasts
+        self.last_time = rospy.Time(0)
+        
         rospy.loginfo("Model TF Publisher started")
         
     def model_states_callback(self, msg):
@@ -26,9 +29,16 @@ class ModelTFPublisher:
             pose = msg.pose[model_idx]
             twist = msg.twist[model_idx]
             
+            # Get current time and avoid duplicate timestamps
+            current_time = rospy.Time.now()
+            if current_time <= self.last_time:
+                return  # Skip if timestamp hasn't advanced
+            self.last_time = current_time
+            
             # Create and publish TF transform (odom -> base_link)
+            # Only publish the base transform, let robot_state_publisher handle the robot links
             transform = TransformStamped()
-            transform.header.stamp = rospy.Time.now()
+            transform.header.stamp = current_time
             transform.header.frame_id = "odom"
             transform.child_frame_id = "base_link"
             transform.transform.translation.x = pose.position.x
@@ -40,7 +50,7 @@ class ModelTFPublisher:
             
             # Create and publish Odometry message
             odom = Odometry()
-            odom.header.stamp = transform.header.stamp
+            odom.header.stamp = current_time
             odom.header.frame_id = "odom"
             odom.child_frame_id = "base_link"
             odom.pose.pose = pose

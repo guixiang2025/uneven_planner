@@ -1,0 +1,51 @@
+# Test configuration for slip-aware trajectory planning
+# 测试用例参数配置
+
+# === Test Case 1: Flat terrain (平地测试) ===
+# 对照组: Ps = 0.0
+# 实验组: Ps = 1.0
+
+# === Test Case 2: Slope terrain (坡道测试) ===
+# 对照组: Ps = 0.0
+# 实验组1: Ps = 1.0  
+# 实验组2: Ps = 10.0
+
+# === Test Case 3: Complex terrain (复杂地形测试) ===
+# 对照组: Ps = 0.0
+# 实验组: Ps = 5.0 (based on Test Case 2 results)
+
+# ALM Trajectory Optimization Parameters
+alm_traj_opt:
+  # Basic trajectory parameters
+  rho_T: 100.0
+  rho_ter: 1000.0
+  max_vel: 1.0
+  max_acc_lon: 1.0
+  max_acc_lat: 0.8
+  max_kap: 0.4
+  min_cxi: 0.7
+  max_sig: 3.0
+  
+  # Slip cost weight parameter (main test parameter)
+  param_Ps_slip_weight: 1.0  # This will be overridden in test scripts
+  
+  # ALM parameters
+  use_scaling: true
+  rho: 100.0
+  beta: 10000.0
+  gamma: 0.1
+  epsilon_con: 0.01
+  max_iter: 15.0
+  
+  # L-BFGS parameters
+  g_epsilon: 1e-4
+  min_step: 1e-8
+  inner_max_iter: 500.0
+  delta: 1e-6
+  mem_size: 10
+  past: 3
+  int_K: 5
+  
+  # Debug and test flags
+  in_test: true
+  in_debug: true 

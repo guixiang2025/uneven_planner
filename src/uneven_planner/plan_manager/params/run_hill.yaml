@@ -51,8 +51,9 @@ manager_node:
     mem_size: 256
     past: 3
     int_K: 16
-    in_test: false
-    in_debug: false
+    in_test: true
+    in_debug: true
+    param_Ps_slip_weight: 0.0
 
   manager:
     piece_len: 0.3

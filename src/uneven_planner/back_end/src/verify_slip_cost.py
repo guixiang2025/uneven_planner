@@ -102,10 +102,10 @@ def extract_debug_data(line: str) -> Optional[Dict[str, float]]:
         if cost_before_match:
             data['cost_before_slip'] = float(cost_before_match.group(1))
         
-        # Extract temp parameter Ps
-        ps_match = re.search(r'temp_param_Ps: ([-+]?\d*\.?\d+)', line)
+        # Extract temp parameter Ps (support both old and new parameter names)
+        ps_match = re.search(r'(?:temp_param_Ps|param_Ps_slip_weight): ([-+]?\d*\.?\d+)', line)
         if ps_match:
-            data['temp_param_Ps'] = float(ps_match.group(1))
+            data['param_Ps_slip_weight'] = float(ps_match.group(1))
         
         # Extract dt_step if available
         dt_match = re.search(r'dt_step: ([-+]?\d*\.?\d+)', line)
@@ -312,12 +312,12 @@ def analyze_log_file(log_file_path: str, Ps_value: float, verbose: bool = False)
                     diff = abs(cpp_cost - results['expected_slip_cost_step'])
                     print(f"    ✗ Mismatch: Difference = {diff:.6f}")
             
-            # Verify temp_param_Ps if available
-            if 'temp_param_Ps' in data:
-                temp_ps = data['temp_param_Ps']
-                print(f"    temp_param_Ps from log: {temp_ps:.6f}")
+            # Verify param_Ps_slip_weight if available
+            if 'param_Ps_slip_weight' in data:
+                temp_ps = data['param_Ps_slip_weight']
+                print(f"    param_Ps_slip_weight from log: {temp_ps:.6f}")
                 if abs(temp_ps - Ps_value) > 1e-6:
-                    print(f"    Warning: temp_param_Ps differs from command line Ps")
+                    print(f"    Warning: param_Ps_slip_weight differs from command line Ps")
         
         except Exception as e:
             print(f"Error processing line {line_num}: {e}")

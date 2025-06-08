@@ -27,6 +27,7 @@ namespace uneven_planner
         nh.getParam("alm_traj_opt/int_K", int_K);
         nh.getParam("alm_traj_opt/in_test", in_test);
         nh.getParam("alm_traj_opt/in_debug", in_debug);
+        nh.getParam("alm_traj_opt/param_Ps_slip_weight", param_Ps_slip_weight);
 
         se2_pub = nh.advertise<nav_msgs::Path>("/alm/se2_path", 1);
         se3_pub = nh.advertise<nav_msgs::Path>("/alm/se3_path", 1);
@@ -663,8 +664,6 @@ namespace uneven_planner
     void ALMTrajOpt::calConstrainCostGrad(double& cost, Eigen::MatrixXd& gdCxy, Eigen::VectorXd &gdTxy, \
                                           Eigen::MatrixXd& gdCyaw, Eigen::VectorXd &gdTyaw)
     {
-        // Add temporary slip cost weight parameter for debugging
-        const double temp_param_Ps = 1.0;
         
         cost = 0.0;
         gdCxy.resize(6*piece_xy, 2);
@@ -941,7 +940,7 @@ namespace uneven_planner
                 
                 // 计算打滑成本（使用更稳定的坡度平方计算）
                 double slip_slope_squared = sin_phix * sin_phix + sin_phiy * sin_phiy;
-                double slip_cost_delta = temp_param_Ps * slip_slope_squared * current_velocity * current_velocity * step;
+                double slip_cost_delta = param_Ps_slip_weight * slip_slope_squared * current_velocity * current_velocity * step;
                 
                 // 添加打滑成本到总成本
                 cost += slip_cost_delta;
@@ -967,7 +966,7 @@ namespace uneven_planner
                                 << " | sin_phiy: " << sin_phiy  
                                 << " | slip_slope_squared: " << slip_slope_squared
                                 << " | step: " << step
-                                << " | temp_param_Ps: " << temp_param_Ps
+                                << " | param_Ps_slip_weight: " << param_Ps_slip_weight
                                 << " | slip_cost_delta: " << slip_cost_delta
                                 << " | cost_before_slip: " << cost_before_slip
                                 << " | total_cost: " << cost);
